@@ -1,0 +1,6 @@
+plot_grid(
+  PCoA_bray_6r_12week,PCoA_jaccard_6r_12week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)

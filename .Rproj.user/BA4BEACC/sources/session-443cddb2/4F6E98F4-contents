@@ -1,0 +1,6 @@
+wilcox.test(shannon_test_7r_0week, shannon_test_7r_12week, paired=TRUE)$p.value
+wilcox.test(simpson_test_7r_0week, simpson_test_7r_12week, paired=TRUE)$p.value
+
+View(alpha_7r_0week)
+View(alpha_7r_12week)
+

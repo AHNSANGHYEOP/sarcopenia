@@ -1,0 +1,1045 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+# 1. Introduction
+샤코페니아를 위한 기능성 소재로서 프로바이오틱스의 효능을 검증하고자 했습니다.
+# 1.1. level_6r
+genus level data
+```{r}
+View(level_6r)
+nrow(level_6r)
+ncol(level_6r)
+```
+# 1.2. level_7r
+species level data
+```{r}
+View(level_7r)
+nrow(level_7r)
+ncol(level_7r)
+
+```
+
+# 1.3. Packages
+```{r}
+library(tidyverse)
+library(vegan)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+
+```
+
+# 2. Task1. alpha diversity
+alpha diversity=species diversity=샘플 "내" 다양성
+species richness, species evenness 두 가지 측면으로 설명된다.
+
+- chao1 : species richness, data의 가공이나 filetering을 어떻게 했는지에 따라
+값이 크게 달라질 수 있다. shannon이나 simpson 사용이 좋아보인다.
+- observed feature : taxa들의 수 세기 
+- shannon : 모든 종이 같은 비율을 가질 때 최대 값을 가진다. effect size가 
+작기 때문에 observed feature를 대신 사용하는 것도 방법이다.
+- simpson : 랜덤하게 두 개의 sequences를 선택했을 때 둘이 서로 같은 종일 
+확률을 나타낸다. 0~1 사이의 값을 가진다.
+
+R package 중 vegan 사용
+
+shannon_index<-diversity(data, index="shannon")
+simpson_index<-deversity(data, index="simpson")
+observed feature<-specnumber(data)
+
+```{r}
+# level_6r preparation
+level_6r$Shannon_Diversity <- NA
+level_6r$Simpson_Diversity <- NA
+level_6r$Species_Richness <- NA
+
+for (i in 1:nrow(level_6r)) {
+  level_6r$Shannon_Diversity[i] <- diversity(level_6r[i, 11:1415], index = "shannon")
+  level_6r$Simpson_Diversity[i] <- diversity(level_6r[i, 11:1415], index = "simpson")
+  level_6r$Species_Richness[i] <- specnumber(level_6r[i, 11:1415])
+}
+
+View(level_6r)
+
+alpha_6r<-level_6r[,-c(11:1415)]
+View(alpha_6r)
+
+# 0week alpha_6r
+
+alpha_6r_0week <- alpha_6r |>
+  filter(visit == "0week")
+
+# 6week alpha_6r
+
+alpha_6r_6week <- alpha_6r |>
+  filter(visit == "6week")
+
+# 12week alpha_6r
+
+alpha_6r_12week <- alpha_6r |>
+  filter(visit == "12week")
+
+```
+
+
+```{r}
+# level_7r preparation
+
+level_7r$Shannon_Diversity <- NA
+level_7r$Simpson_Diversity <- NA
+level_7r$Species_Richness <- NA
+
+for (i in 1:nrow(level_7r)) {
+  level_7r$Shannon_Diversity[i] <- diversity(level_7r[i, 11:3832], index = "shannon")
+  level_7r$Simpson_Diversity[i] <- diversity(level_7r[i, 11:3832], index = "simpson")
+  level_7r$Species_Richness[i] <- specnumber(level_7r[i, 11:3832])
+}
+
+View(level_7r)
+
+alpha_7r<-level_7r[,-c(11:3832)]
+View(alpha_7r)
+
+# 0week alpha_7r
+
+alpha_7r_0week <- alpha_7r |>
+  filter(visit == "0week")
+
+# 6week alpha_7r
+
+alpha_7r_6week <- alpha_7r |>
+  filter(visit == "6week")
+
+# 12week alpha_7r
+
+alpha_7r_12week <- alpha_7r |>
+  filter(visit == "12week")
+
+```
+
+# 2.1 test group VS placebo group 0 week alpha diversity different
+```{r}
+# level_6r 0week alpha diversity
+# shannon
+shannon_placebo_6r_0week <- alpha_6r_0week$Shannon_Diversity[alpha_6r_0week$group == "placebo"]
+shannon_test_6r_0week<-alpha_6r_0week$Shannon_Diversity[alpha_6r_0week$group == "test"]
+
+p_shannon_6r_0week<-wilcox.test(shannon_placebo_6r_0week, shannon_test_6r_0week, paired = FALSE)$p.value
+
+plot_shannon_6r_0week <- ggplot(alpha_6r_0week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Shannon Index_0week","\n",sprintf("p = %.3f",p_shannon_6r_0week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+#simpson
+simpson_placebo_6r_0week <- alpha_6r_0week$Simpson_Diversity[alpha_6r_0week$group == "placebo"]
+simpson_test_6r_0week<-alpha_6r_0week$Simpson_Diversity[alpha_6r_0week$group == "test"]
+
+p_simpson_6r_0week<-wilcox.test(simpson_placebo_6r_0week, simpson_test_6r_0week, paired = FALSE)$p.value
+
+plot_simpson_6r_0week <- ggplot(alpha_6r_0week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Simpson Index_0week","\n",sprintf("p = %.3f",p_simpson_6r_0week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+  
+
+#richness
+richness_placebo_6r_0week <- alpha_6r_0week$Species_Richness[alpha_6r_0week$group == "placebo"]
+richness_test_6r_0week<-alpha_6r_0week$Species_Richness[alpha_6r_0week$group == "test"]
+
+p_richness_6r_0week<-wilcox.test(richness_placebo_6r_0week, richness_test_6r_0week, paired = FALSE)$p.value
+
+plot_richness_6r_0week <- ggplot(alpha_6r_0week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Observed feature_0week","\n",sprintf("p = %.3f",p_richness_6r_0week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+ 
+
+plot_grid(
+  plot_shannon_6r_0week, plot_simpson_6r_0week, plot_richness_6r_0week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+```
+
+```{r}
+# level_7r 0week alpha diverisity
+# shannon
+shannon_placebo_7r_0week <- alpha_7r_0week$Shannon_Diversity[alpha_7r_0week$group == "placebo"]
+shannon_test_7r_0week<-alpha_7r_0week$Shannon_Diversity[alpha_7r_0week$group == "test"]
+
+p_shannon_7r_0week<-wilcox.test(shannon_placebo_7r_0week, shannon_test_7r_0week, paired = FALSE)$p.value
+
+plot_shannon_7r_0week <- ggplot(alpha_7r_0week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Shannon Index_0week","\n",sprintf("p = %.3f",p_shannon_7r_0week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+#simpson
+simpson_placebo_7r_0week <- alpha_7r_0week$Simpson_Diversity[alpha_7r_0week$group == "placebo"]
+simpson_test_7r_0week<-alpha_7r_0week$Simpson_Diversity[alpha_7r_0week$group == "test"]
+
+p_simpson_7r_0week<-wilcox.test(simpson_placebo_7r_0week, simpson_test_7r_0week, paired = FALSE)$p.value
+
+plot_simpson_7r_0week <- ggplot(alpha_7r_0week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Simpson Index_0week","\n",sprintf("p = %.3f",p_simpson_7r_0week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+#richness
+richness_placebo_7r_0week <- alpha_7r_0week$Species_Richness[alpha_7r_0week$group == "placebo"]
+richness_test_7r_0week<-alpha_7r_0week$Species_Richness[alpha_7r_0week$group == "test"]
+
+p_richness_7r_0week<-wilcox.test(richness_placebo_7r_0week, richness_test_7r_0week, paired = FALSE)$p.value
+
+plot_richness_7r_0week <- ggplot(alpha_7r_0week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Observed feature_0week","\n",sprintf("p = %.3f",p_richness_7r_0week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+plot_grid(
+  plot_shannon_7r_0week, plot_simpson_7r_0week, plot_richness_7r_0week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+
+```
+# 2.2 test group VS placebo group 6 week alpha diversity different
+```{r}
+# level_6r 6week alpha diversity
+# shannon
+shannon_placebo_6r_6week <- alpha_6r_6week$Shannon_Diversity[alpha_6r_6week$group == "placebo"]
+shannon_test_6r_6week<-alpha_6r_6week$Shannon_Diversity[alpha_6r_6week$group == "test"]
+
+p_shannon_6r_6week<-wilcox.test(shannon_placebo_6r_6week, shannon_test_6r_6week, paired = FALSE)$p.value
+
+plot_shannon_6r_6week <- ggplot(alpha_6r_6week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Shannon Index_6week","\n",sprintf("p = %.3f",p_shannon_6r_6week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#simpson
+simpson_placebo_6r_6week <- alpha_6r_6week$Simpson_Diversity[alpha_6r_6week$group == "placebo"]
+simpson_test_6r_6week<-alpha_6r_6week$Simpson_Diversity[alpha_6r_6week$group == "test"]
+
+p_simpson_6r_6week<-wilcox.test(simpson_placebo_6r_6week, simpson_test_6r_6week, paired = FALSE)$p.value
+
+
+plot_simpson_6r_6week <- ggplot(alpha_6r_6week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Simpson Index_6week","\n",sprintf("p = %.3f",p_simpson_6r_6week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#richness
+richness_placebo_6r_6week <- alpha_6r_6week$Species_Richness[alpha_6r_6week$group == "placebo"]
+richness_test_6r_6week<-alpha_6r_6week$Species_Richness[alpha_6r_6week$group == "test"]
+
+p_richness_6r_6week<-wilcox.test(richness_placebo_6r_6week, richness_test_6r_6week, paired = FALSE)$p.value
+
+plot_richness_6r_6week <- ggplot(alpha_6r_6week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Observed feature_6week","\n",sprintf("p = %.3f",p_richness_6r_6week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+plot_grid(
+  plot_shannon_6r_6week, plot_simpson_6r_6week, plot_richness_6r_6week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+```
+
+```{r}
+#level_7r 6week alpha diversity
+# shannon
+shannon_placebo_7r_6week <- alpha_7r_6week$Shannon_Diversity[alpha_7r_6week$group == "placebo"]
+shannon_test_7r_6week<-alpha_7r_6week$Shannon_Diversity[alpha_7r_6week$group == "test"]
+
+p_shannon_7r_6week<-wilcox.test(shannon_placebo_7r_6week, shannon_test_7r_6week, paired = FALSE)$p.value
+
+plot_shannon_7r_6week <- ggplot(alpha_7r_6week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Shannon Index_6week","\n",sprintf("p = %.3f",p_shannon_7r_6week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#simpson
+simpson_placebo_7r_6week <- alpha_7r_6week$Simpson_Diversity[alpha_7r_6week$group == "placebo"]
+simpson_test_7r_6week<-alpha_7r_6week$Simpson_Diversity[alpha_7r_6week$group == "test"]
+
+p_simpson_7r_6week<-wilcox.test(simpson_placebo_7r_6week, simpson_test_7r_6week, paired = FALSE)$p.value
+
+plot_simpson_7r_6week <- ggplot(alpha_7r_6week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Simpson Index_6week","\n",sprintf("p = %.3f",p_simpson_7r_6week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#richness
+richness_placebo_7r_6week <- alpha_7r_6week$Species_Richness[alpha_7r_6week$group == "placebo"]
+richness_test_7r_6week<-alpha_7r_6week$Species_Richness[alpha_7r_6week$group == "test"]
+
+p_richness_7r_6week<-wilcox.test(richness_placebo_7r_6week, richness_test_7r_6week, paired = FALSE)$p.value
+
+plot_richness_7r_6week <- ggplot(alpha_7r_6week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Observed feature_6week","\n",sprintf("p = %.3f",p_richness_7r_6week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+plot_grid(
+  plot_shannon_7r_6week, plot_simpson_7r_6week, plot_richness_7r_6week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+```
+
+
+# 2.3 test group VS placebo group 12 week alpha diversity different
+```{r}
+# level_6r 12week alpha diversity
+# shannon
+shannon_placebo_6r_12week <- alpha_6r_12week$Shannon_Diversity[alpha_6r_12week$group == "placebo"]
+shannon_test_6r_12week<-alpha_6r_12week$Shannon_Diversity[alpha_6r_12week$group == "test"]
+
+p_shannon_6r_12week<-wilcox.test(shannon_placebo_6r_12week, shannon_test_6r_12week, paired = FALSE)$p.value
+
+plot_shannon_6r_12week <- ggplot(alpha_6r_12week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Shannon Index_12week","\n",sprintf("p = %.3f",p_shannon_6r_12week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#simpson
+simpson_placebo_6r_12week <- alpha_6r_12week$Simpson_Diversity[alpha_6r_12week$group == "placebo"]
+simpson_test_6r_12week<-alpha_6r_12week$Simpson_Diversity[alpha_6r_12week$group == "test"]
+
+p_simpson_6r_12week<-wilcox.test(simpson_placebo_6r_12week, simpson_test_6r_12week, paired = FALSE)$p.value
+
+plot_simpson_6r_12week <- ggplot(alpha_6r_12week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Simpson Index_12week","\n",sprintf("p = %.3f",p_simpson_6r_12week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#richness
+richness_placebo_6r_12week <- alpha_6r_12week$Species_Richness[alpha_6r_12week$group == "placebo"]
+richness_test_6r_12week<-alpha_6r_12week$Species_Richness[alpha_6r_12week$group == "test"]
+
+p_richness_6r_12week<-wilcox.test(richness_placebo_6r_12week, richness_test_6r_12week, paired = FALSE)$p.value
+
+plot_richness_6r_12week <- ggplot(alpha_6r_12week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Genus_Observed feature_12week","\n",sprintf("p = %.3f",p_richness_6r_12week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+plot_grid(
+  plot_shannon_6r_12week, plot_simpson_6r_12week, plot_richness_6r_12week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+```
+
+```{r}
+# level_7r 12week alpha diversity
+# shannon
+shannon_placebo_7r_12week <- alpha_7r_12week$Shannon_Diversity[alpha_7r_12week$group == "placebo"]
+shannon_test_7r_12week<-alpha_7r_12week$Shannon_Diversity[alpha_7r_12week$group == "test"]
+
+p_shannon_7r_12week<-wilcox.test(shannon_placebo_7r_12week, shannon_test_7r_12week, paired = FALSE)$p.value
+
+plot_shannon_7r_12week <- ggplot(alpha_7r_12week, aes(x = group, y = Shannon_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Shannon Index_12week","\n",sprintf("p = %.3f",p_shannon_7r_12week)),
+       x = "Group",
+       y = "Shannon Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#simpson
+simpson_placebo_7r_12week <- alpha_7r_12week$Simpson_Diversity[alpha_7r_12week$group == "placebo"]
+simpson_test_7r_12week<-alpha_7r_12week$Simpson_Diversity[alpha_7r_12week$group == "test"]
+
+p_simpson_7r_12week<-wilcox.test(simpson_placebo_7r_12week, simpson_test_7r_12week, paired = FALSE)$p.value
+
+plot_simpson_7r_12week <- ggplot(alpha_7r_12week, aes(x = group, y = Simpson_Diversity, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Simpson Index_12week","\n",sprintf("p = %.3f",p_simpson_7r_12week)),
+       x = "Group",
+       y = "Simpson Diversity Index") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange")) 
+
+#richness
+richness_placebo_7r_12week <- alpha_7r_12week$Species_Richness[alpha_7r_12week$group == "placebo"]
+richness_test_7r_12week<-alpha_7r_12week$Species_Richness[alpha_7r_12week$group == "test"]
+
+p_richness_7r_12week<-wilcox.test(richness_placebo_7r_12week, richness_test_7r_12week, paired = FALSE)$p.value
+
+plot_richness_7r_12week <- ggplot(alpha_7r_12week, aes(x = group, y = Species_Richness, fill = group, color = group)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.6) +
+  stat_summary(fun = mean, geom = "text", aes(label = sprintf("%.2f", ..y..)), 
+               vjust = -0.5, color = "black")+
+  theme_minimal() +
+  labs(title = paste("Species_Observed feature_12week","\n",sprintf("p = %.3f",p_richness_7r_12week)),
+       x = "Group",
+       y = "Observed feature") +
+  scale_fill_manual(values = c("test"="cornflowerblue", "placebo"="orange")) +
+  scale_color_manual(values = c("test"="navy", "placebo"="darkorange"))
+
+plot_grid(
+  plot_shannon_7r_12week, plot_simpson_7r_12week, plot_richness_7r_12week,
+  labesl="AUTO",
+  ncol=2,
+  align="hv"
+)
+
+```
+# 2.4 thinking about..
+
+a. 어떤 통계 방법을 적용해야 하는지 판단 필요, 왜 해당 통계 방법을 골랐는지에 
+대한 근거가 명확해야 한다.
+vegan package
+- shannon index & simpton index
+- observed feature : shannon index의 effect size가 작을 경우 대체 가능하다.
+
+b. 이 결과를 어떻게 해석할 수 있을지에 대한 고민이 필요하다.
+그래프에는 평균값과 p-value를 포함해서 visualizaion
+결과 해석은 p-value의 값이 0.05 큰지 작은지 대소 비교
+0.05보다 크다<- 유의미한 차이가 없다.
+0.05보다 작다<- 유의미한 차이가 있다.
+0week, 6week, 12week에서
+3가지 index모두 p-value 값이 0.05보다 큼.
+유의미한 차이 발생X
+
+# 3. Task2. beta diversity
+beta diversity=ratio species diversity 샘플 "간" 다양성 
+Jaccard distance : 종의 존재유무
+Bray-Curtis distance : 종의 총량, Abundance 고려
+unweighted UniFrac distance : a qualitative measure of community dissimilarity 
+that incorporates phylogenetic relationships between the features
+weighted UniFrac distance : a quantitative measure of community dissimilarity 
+that incorporates phylogenetic relationships between the features
+
+# 3.1 test group VS placebo group 0 week beta diversity different
+
+```{r}
+# level_6r 0week beta diversity
+# bray
+
+level_6r_0week <- level_6r|>
+  filter(visit=="0week")
+
+bray_dist_6r_0week<-vegdist(level_6r_0week[,c(11:1415)], method="bray")
+bray_result_6r_0week <- cmdscale(bray_dist_6r_0week, eig = TRUE, k = 2)  
+
+bray_df_6r_0week <- data.frame(
+  Sample = rownames(level_6r_0week),
+  PC1 = bray_result_6r_0week$points[, 1], 
+  PC2 = bray_result_6r_0week$points[, 2],  
+  Group = level_6r_0week$group 
+)
+
+eig_bray_6r_0week <- bray_result_6r_0week$eig / sum(bray_result_6r_0week$eig)
+
+set.seed(123)
+adonis_bray_6r_0week <- adonis2(bray_dist_6r_0week ~ level_6r_0week$group, permutations = 999)
+bray_pvalue_6r_0week <- adonis_bray_6r_0week[1,"Pr(>F)"]
+print(bray_pvalue_6r_0week)
+
+PCoA_bray_6r_0week<-ggplot(bray_df_6r_0week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Bray PCoA_0week","\n",sprintf("p = %.3f",bray_pvalue_6r_0week)),
+    x = paste0("PC1 (", round(eig_bray_6r_0week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_6r_0week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_6r_0week<-vegdist(level_6r_0week[,c(11:1415)], method="jaccard")
+jaccard_result_6r_0week <- cmdscale(jaccard_dist_6r_0week, eig = TRUE, k = 2)  
+
+jaccard_df_6r_0week <- data.frame(
+  Sample = rownames(level_6r_0week),
+  PC1 = jaccard_result_6r_0week$points[, 1], 
+  PC2 = jaccard_result_6r_0week$points[, 2],  
+  Group = level_6r_0week$group 
+)
+
+eig_jaccard_6r_0week <- jaccard_result_6r_0week$eig / sum(jaccard_result_6r_0week$eig)
+
+set.seed(123)
+adonis_jaccard_6r_0week <- adonis2(jaccard_dist_6r_0week ~ level_6r_0week$group, permutations = 999)
+jaccard_pvalue_6r_0week <- adonis_jaccard_6r_0week[1,"Pr(>F)"]
+print(jaccard_pvalue_6r_0week)
+
+PCoA_jaccard_6r_0week<-ggplot(jaccard_df_6r_0week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Jaccard PCoA_0week","\n",sprintf("p = %.3f", jaccard_pvalue_6r_0week)),
+    x = paste0("PC1 (", round(eig_jaccard_6r_0week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_6r_0week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 0week PCoA
+
+plot_grid(
+  PCoA_bray_6r_0week,PCoA_jaccard_6r_0week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+
+```
+
+```{r}
+# level_7r 0week beta diversity
+# bray
+
+level_7r_0week <- level_7r|>
+  filter(visit=="0week")
+
+bray_dist_7r_0week<-vegdist(level_7r_0week[,c(11:3832)], method="bray")
+bray_result_7r_0week <- cmdscale(bray_dist_7r_0week, eig = TRUE, k = 2)  
+
+bray_df_7r_0week <- data.frame(
+  Sample = rownames(level_7r_0week),
+  PC1 = bray_result_7r_0week$points[, 1], 
+  PC2 = bray_result_7r_0week$points[, 2],  
+  Group = level_7r_0week$group 
+)
+
+eig_bray_7r_0week <- bray_result_7r_0week$eig / sum(bray_result_7r_0week$eig)
+
+set.seed(123)
+adonis_bray_7r_0week <- adonis2(bray_dist_7r_0week ~ level_7r_0week$group, permutations = 999)
+bray_pvalue_7r_0week <- adonis_bray_7r_0week[1,"Pr(>F)"]
+print(bray_pvalue_7r_0week)
+
+PCoA_bray_7r_0week<-ggplot(bray_df_7r_0week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Bray PCoA_0week","\n",sprintf("p = %.3f",bray_pvalue_7r_0week)),
+    x = paste0("PC1 (", round(eig_bray_7r_0week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_7r_0week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_7r_0week<-vegdist(level_7r_0week[,c(11:3832)], method="jaccard")
+jaccard_result_7r_0week <- cmdscale(jaccard_dist_7r_0week, eig = TRUE, k = 2)  
+
+jaccard_df_7r_0week <- data.frame(
+  Sample = rownames(level_7r_0week),
+  PC1 = jaccard_result_7r_0week$points[, 1], 
+  PC2 = jaccard_result_7r_0week$points[, 2],  
+  Group = level_7r_0week$group 
+)
+
+eig_jaccard_7r_0week <- jaccard_result_7r_0week$eig / sum(jaccard_result_7r_0week$eig)
+
+set.seed(123)
+adonis_jaccard_7r_0week <- adonis2(jaccard_dist_7r_0week ~ level_7r_0week$group, permutations = 999)
+jaccard_pvalue_7r_0week <- adonis_jaccard_7r_0week[1,"Pr(>F)"]
+print(jaccard_pvalue_7r_0week)
+
+PCoA_jaccard_7r_0week<-ggplot(jaccard_df_7r_0week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Jaccard PCoA_0week","\n",sprintf("p = %.3f", jaccard_pvalue_7r_0week)),
+    x = paste0("PC1 (", round(eig_jaccard_7r_0week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_7r_0week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 0week PCoA
+
+plot_grid(
+  PCoA_bray_7r_0week,PCoA_jaccard_7r_0week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+
+```
+
+# 3.2 test group VS placebo group 6 week beta diversity different
+```{r}
+# level_6r 6week beta diversity
+
+# bray
+
+level_6r_6week <- level_6r|>
+  filter(visit=="6week")
+
+bray_dist_6r_6week<-vegdist(level_6r_6week[,c(11:1415)], method="bray")
+bray_result_6r_6week <- cmdscale(bray_dist_6r_6week, eig = TRUE, k = 2)  
+
+bray_df_6r_6week <- data.frame(
+  Sample = rownames(level_6r_6week),
+  PC1 = bray_result_6r_6week$points[, 1], 
+  PC2 = bray_result_6r_6week$points[, 2],  
+  Group = level_6r_6week$group 
+)
+
+eig_bray_6r_6week <- bray_result_6r_6week$eig / sum(bray_result_6r_6week$eig)
+
+set.seed(123)
+adonis_bray_6r_6week <- adonis2(bray_dist_6r_6week ~ level_6r_6week$group, permutations = 999)
+bray_pvalue_6r_6week <- adonis_bray_6r_6week[1,"Pr(>F)"]
+print(bray_pvalue_6r_6week)
+
+PCoA_bray_6r_6week<-ggplot(bray_df_6r_6week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Bray PCoA_6week","\n",sprintf("p = %.3f",bray_pvalue_6r_6week)),
+    x = paste0("PC1 (", round(eig_bray_6r_6week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_6r_6week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_6r_6week<-vegdist(level_6r_6week[,c(11:1415)], method="jaccard")
+jaccard_result_6r_6week <- cmdscale(jaccard_dist_6r_6week, eig = TRUE, k = 2)  
+
+jaccard_df_6r_6week <- data.frame(
+  Sample = rownames(level_6r_6week),
+  PC1 = jaccard_result_6r_6week$points[, 1], 
+  PC2 = jaccard_result_6r_6week$points[, 2],  
+  Group = level_6r_6week$group 
+)
+
+eig_jaccard_6r_6week <- jaccard_result_6r_6week$eig / sum(jaccard_result_6r_6week$eig)
+
+set.seed(123)
+adonis_jaccard_6r_6week <- adonis2(jaccard_dist_6r_6week ~ level_6r_6week$group, permutations = 999)
+jaccard_pvalue_6r_6week <- adonis_jaccard_6r_6week[1,"Pr(>F)"]
+print(jaccard_pvalue_6r_6week)
+
+PCoA_jaccard_6r_6week<-ggplot(jaccard_df_6r_6week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Jaccard PCoA_6week","\n",sprintf("p = %.3f", jaccard_pvalue_6r_6week)),
+    x = paste0("PC1 (", round(eig_jaccard_6r_6week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_6r_6week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 6week PCoA
+
+plot_grid(
+  PCoA_bray_6r_6week,PCoA_jaccard_6r_6week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+```
+
+```{r}
+# level_7r 6week beta diversity
+
+# bray
+
+level_7r_6week <- level_7r|>
+  filter(visit=="6week")
+
+bray_dist_7r_6week<-vegdist(level_7r_6week[,c(11:3832)], method="bray")
+bray_result_7r_6week <- cmdscale(bray_dist_7r_6week, eig = TRUE, k = 2)  
+
+bray_df_7r_6week <- data.frame(
+  Sample = rownames(level_7r_6week),
+  PC1 = bray_result_7r_6week$points[, 1], 
+  PC2 = bray_result_7r_6week$points[, 2],  
+  Group = level_7r_6week$group 
+)
+
+eig_bray_7r_6week <- bray_result_7r_6week$eig / sum(bray_result_7r_6week$eig)
+
+set.seed(123)
+adonis_bray_7r_6week <- adonis2(bray_dist_7r_6week ~ level_7r_6week$group, permutations = 999)
+bray_pvalue_7r_6week <- adonis_bray_7r_6week[1,"Pr(>F)"]
+print(bray_pvalue_7r_6week)
+
+PCoA_bray_7r_6week<-ggplot(bray_df_7r_6week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Bray PCoA_6week","\n",sprintf("p = %.3f",bray_pvalue_7r_6week)),
+    x = paste0("PC1 (", round(eig_bray_7r_6week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_7r_6week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_7r_6week<-vegdist(level_7r_6week[,c(11:3832)], method="jaccard")
+jaccard_result_7r_6week <- cmdscale(jaccard_dist_7r_6week, eig = TRUE, k = 2)  
+
+jaccard_df_7r_6week <- data.frame(
+  Sample = rownames(level_7r_6week),
+  PC1 = jaccard_result_7r_6week$points[, 1], 
+  PC2 = jaccard_result_7r_6week$points[, 2],  
+  Group = level_7r_6week$group 
+)
+
+eig_jaccard_7r_6week <- jaccard_result_7r_6week$eig / sum(jaccard_result_7r_6week$eig)
+
+set.seed(123)
+adonis_jaccard_7r_6week <- adonis2(jaccard_dist_7r_6week ~ level_7r_6week$group, permutations = 999)
+jaccard_pvalue_7r_6week <- adonis_jaccard_7r_6week[1,"Pr(>F)"]
+print(jaccard_pvalue_7r_6week)
+
+PCoA_jaccard_7r_6week<-ggplot(jaccard_df_7r_6week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Jaccard PCoA_6week","\n",sprintf("p = %.3f", jaccard_pvalue_7r_6week)),
+    x = paste0("PC1 (", round(eig_jaccard_7r_6week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_7r_6week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 6week PCoA
+
+plot_grid(
+  PCoA_bray_7r_6week,PCoA_jaccard_7r_6week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+```
+
+# 3.3 test group VS placebo group 12 week beta diversity different
+```{r}
+# level_6r 12week beta diversity
+
+# bray
+
+level_6r_12week <- level_6r|>
+  filter(visit=="12week")
+
+bray_dist_6r_12week<-vegdist(level_6r_12week[,c(11:1415)], method="bray")
+bray_result_6r_12week <- cmdscale(bray_dist_6r_12week, eig = TRUE, k = 2)  
+
+bray_df_6r_12week <- data.frame(
+  Sample = rownames(level_6r_12week),
+  PC1 = bray_result_6r_12week$points[, 1], 
+  PC2 = bray_result_6r_12week$points[, 2],  
+  Group = level_6r_12week$group 
+)
+
+eig_bray_6r_12week <- bray_result_6r_12week$eig / sum(bray_result_6r_12week$eig)
+
+set.seed(123)
+adonis_bray_6r_12week <- adonis2(bray_dist_6r_12week ~ level_6r_12week$group, permutations = 999)
+bray_pvalue_6r_12week <- adonis_bray_6r_12week[1,"Pr(>F)"]
+print(bray_pvalue_6r_12week)
+
+PCoA_bray_6r_12week<-ggplot(bray_df_6r_12week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Bray PCoA_12week","\n",sprintf("p = %.3f",bray_pvalue_6r_12week)),
+    x = paste0("PC1 (", round(eig_bray_6r_12week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_6r_12week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_6r_12week<-vegdist(level_6r_12week[,c(11:1415)], method="jaccard")
+jaccard_result_6r_12week <- cmdscale(jaccard_dist_6r_12week, eig = TRUE, k = 2)  
+
+jaccard_df_6r_12week <- data.frame(
+  Sample = rownames(level_6r_12week),
+  PC1 = jaccard_result_6r_12week$points[, 1], 
+  PC2 = jaccard_result_6r_12week$points[, 2],  
+  Group = level_6r_12week$group 
+)
+
+eig_jaccard_6r_12week <- jaccard_result_6r_12week$eig / sum(jaccard_result_6r_12week$eig)
+
+set.seed(123)
+adonis_jaccard_6r_12week <- adonis2(jaccard_dist_6r_12week ~ level_6r_12week$group, permutations = 999)
+jaccard_pvalue_6r_12week <- adonis_jaccard_6r_12week[1,"Pr(>F)"]
+print(jaccard_pvalue_6r_12week)
+
+PCoA_jaccard_6r_12week<-ggplot(jaccard_df_6r_12week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Genus_Jaccard PCoA_12week","\n",sprintf("p = %.3f", jaccard_pvalue_6r_12week)),
+    x = paste0("PC1 (", round(eig_jaccard_6r_12week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_6r_12week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 12week PCoA
+
+plot_grid(
+  PCoA_bray_6r_12week,PCoA_jaccard_6r_12week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+```
+
+```{r}
+# level_7r 6week beta diversity
+
+# bray
+
+level_7r_12week <- level_7r|>
+  filter(visit=="12week")
+
+bray_dist_7r_12week<-vegdist(level_7r_12week[,c(11:3832)], method="bray")
+bray_result_7r_12week <- cmdscale(bray_dist_7r_12week, eig = TRUE, k = 2)  
+
+bray_df_7r_12week <- data.frame(
+  Sample = rownames(level_7r_12week),
+  PC1 = bray_result_7r_12week$points[, 1], 
+  PC2 = bray_result_7r_12week$points[, 2],  
+  Group = level_7r_12week$group 
+)
+
+eig_bray_7r_12week <- bray_result_7r_12week$eig / sum(bray_result_7r_12week$eig)
+
+set.seed(123)
+adonis_bray_7r_12week <- adonis2(bray_dist_7r_12week ~ level_7r_12week$group, permutations = 999)
+bray_pvalue_7r_12week <- adonis_bray_7r_12week[1,"Pr(>F)"]
+print(bray_pvalue_7r_12week)
+
+PCoA_bray_7r_12week<-ggplot(bray_df_7r_12week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Bray PCoA_12week","\n",sprintf("p = %.3f",bray_pvalue_7r_12week)),
+    x = paste0("PC1 (", round(eig_bray_7r_12week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_bray_7r_12week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+#jaccard
+
+jaccard_dist_7r_12week<-vegdist(level_7r_12week[,c(11:3832)], method="jaccard")
+jaccard_result_7r_12week <- cmdscale(jaccard_dist_7r_12week, eig = TRUE, k = 2)  
+
+jaccard_df_7r_12week <- data.frame(
+  Sample = rownames(level_7r_12week),
+  PC1 = jaccard_result_7r_12week$points[, 1], 
+  PC2 = jaccard_result_7r_12week$points[, 2],  
+  Group = level_7r_12week$group 
+)
+
+eig_jaccard_7r_12week <- jaccard_result_7r_12week$eig / sum(jaccard_result_7r_12week$eig)
+
+set.seed(123)
+adonis_jaccard_7r_12week <- adonis2(jaccard_dist_7r_12week ~ level_7r_12week$group, permutations = 999)
+jaccard_pvalue_7r_12week <- adonis_jaccard_7r_12week[1,"Pr(>F)"]
+print(jaccard_pvalue_7r_12week)
+
+PCoA_jaccard_7r_12week<-ggplot(jaccard_df_7r_12week, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = paste("Species_Jaccard PCoA_12week","\n",sprintf("p = %.3f", jaccard_pvalue_7r_12week)),
+    x = paste0("PC1 (", round(eig_jaccard_7r_12week[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(eig_jaccard_7r_12week[2] * 100, 1), "%)")
+  ) +
+  stat_ellipse(linetype="dashed")+
+  theme(legend.position = "right")
+
+# 12week PCoA
+
+plot_grid(
+  PCoA_bray_7r_12week,PCoA_jaccard_7r_12week,
+  labesl="AUTO",
+  align="hv",
+  axis = "tb" 
+)
+
+```
+# 3.4 thinking about..
+
+a. PCoA를 통해 비교 분석을 진행할 필요가 있음
+b. PCoA 상에서 두 그룹간 비교를 위해 어떤 통계 방법을 적용해야 하는가
+c. 이 결과를 어떻게 해석할 수 있는가
+
+PERMANOVA 분석<-adonis2()
+그래프에는 p-value를 포함해서 visualizaion
+결과 해석은 p-value의 값이 0.05 큰지 작은지 대소 비교
+0.05보다 크다<- 유의미한 차이가 없다.
+0.05보다 작다<- 유의미한 차이가 있다.
+
+# 4. chatGPT, Copliot 활용법 고안
+
+
+
+
+
+
+
+
+
+
